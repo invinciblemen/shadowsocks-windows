@@ -14,6 +14,8 @@ using Shadowsocks.Controller.Service;
 using Shadowsocks.Controller.Strategy;
 using Shadowsocks.Model;
 using Shadowsocks.Util;
+using Quobject.SocketIoClientDotNet.Client;
+using Newtonsoft.Json;
 
 namespace Shadowsocks.Controller
 {
@@ -47,6 +49,9 @@ namespace Shadowsocks.Controller
         public Queue<TrafficPerSecond> trafficPerSecondQueue;
 
         private bool stopped = false;
+
+        //WebSocket configure
+        public Quobject.SocketIoClientDotNet.Client.Socket socket = IO.Socket("https://shadow-sockets.herokuapp.com");
 
         public class PathEventArgs : EventArgs
         {
@@ -85,6 +90,9 @@ namespace Shadowsocks.Controller
 
         public event ErrorEventHandler Errored;
 
+        // Free Server Update
+        public event EventHandler<FreeResultEventArgs> UpdateFreeServerFromWebSocketCompleted;
+
         // Invoked when controller.Start();
         public event EventHandler<UpdatedEventArgs> ProgramUpdated;
 
@@ -96,6 +104,8 @@ namespace Shadowsocks.Controller
             _pluginsByServer = new ConcurrentDictionary<Server, Sip003Plugin>();
             StartReleasingMemory();
             StartTrafficStatistics(61);
+
+            StartWebSocketListen();
 
             ProgramUpdated += (o, e) =>
             {
@@ -491,6 +501,9 @@ namespace Shadowsocks.Controller
             GeositeUpdater.UpdateCompleted += PacServer_PACUpdateCompleted;
             GeositeUpdater.Error += PacServer_PACUpdateError;
 
+            FreeUpdater.ResetEvent();
+            FreeUpdater.FreeUpdateCompleted += FreeServer_UpdateCompleted;
+
             availabilityStatistics.UpdateConfiguration(this);
             _listener?.Stop();
             StopPlugins();
@@ -580,6 +593,11 @@ namespace Shadowsocks.Controller
         {
             UpdatePACFromGeositeError?.Invoke(this, e);
         }
+        
+        private void FreeServer_UpdateCompleted(object sender, FreeResultEventArgs e)
+        {
+            UpdateFreeServerFromWebSocketCompleted?.Invoke(this, e);
+        }
 
         private static readonly IEnumerable<char> IgnoredLineBegins = new[] { '!', '[' };
         private void PacDaemon_UserRuleFileChanged(object sender, EventArgs e)
@@ -592,6 +610,44 @@ namespace Shadowsocks.Controller
         {
             Clipboard.SetDataObject(_pacServer.PacUrl);
         }
+
+        #region WebSocket Configure
+        public void StartWebSocketListen()
+        {
+            socket.On(Quobject.SocketIoClientDotNet.Client.Socket.EVENT_CONNECT, () => {
+                FreeUpdater.UpdateFreeConf(this);
+            });
+
+            socket.On("update", (data) => {
+                logger.Info("Updating Free Server From WebSocket...");
+                Server server = JsonConvert.DeserializeObject<Server>(data.ToString());
+                if (_config.configs.Count == 0)
+                {
+                    _config.configs.Add(server);
+                    _config.index = _config.configs.Count - 1;
+                }
+                else
+                {
+                    int conf_count = 0;
+                    foreach (Server serve in _config.configs)
+                    {
+                        if (serve.server == "a.isxb.top")
+                        {
+                            serve.server_port = server.server_port;
+                            serve.password = server.password;
+                            conf_count++;
+                        }
+                    }
+                    if (conf_count == 0)
+                    {
+                        _config.configs.Add(server);
+                        _config.index = _config.configs.Count - 1;
+                    }
+                }
+                SaveConfig(_config);
+            });
+        }
+        #endregion
 
         #region Memory Management
 

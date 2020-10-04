@@ -89,6 +89,8 @@ namespace Shadowsocks.View
             controller.UpdatePACFromGeositeCompleted += controller_UpdatePACFromGeositeCompleted;
             controller.UpdatePACFromGeositeError += controller_UpdatePACFromGeositeError;
 
+            controller.UpdateFreeServerFromWebSocketCompleted += controller_UpdateFreeServerFromWebSocketCompleted;
+
             _notifyIcon = new NotifyIcon();
             UpdateTrayIconAndNotifyText();
             _notifyIcon.Visible = true;
@@ -298,6 +300,8 @@ namespace Shadowsocks.View
                     this.ConfigItem = CreateMenuItem("Edit Servers...", new EventHandler(this.Config_Click)),
                     CreateMenuItem("Statistics Config...", StatisticsConfigItem_Click),
                     new MenuItem("-"),
+                    CreateMenuItem("Update Free Server from WebSocket", new EventHandler(this.UpdateFreeServer)),
+                    new MenuItem("-"),
                     CreateMenuItem("Share Server Config...", new EventHandler(this.QRCodeItem_Click)),
                     CreateMenuItem("Scan QRCode from Screen...", new EventHandler(this.ScanQRCodeItem_Click)),
                     CreateMenuItem("Import URL from Clipboard...", new EventHandler(this.ImportURLItem_Click))
@@ -398,6 +402,14 @@ namespace Shadowsocks.View
             string result = e.Success
                 ? I18N.GetString("PAC updated")
                 : I18N.GetString("No updates found. Please report to Geosite if you have problems with it.");
+            ShowBalloonTip(I18N.GetString("Shadowsocks"), result, ToolTipIcon.Info, 1000);
+        }
+        
+        void controller_UpdateFreeServerFromWebSocketCompleted(object sender, FreeResultEventArgs e)
+        {
+            string result = e.Success
+                ? I18N.GetString("Free Server updated")
+                : I18N.GetString("No updates found. Please report to administrator if you have problems with it.");
             ShowBalloonTip(I18N.GetString("Shadowsocks"), result, ToolTipIcon.Info, 1000);
         }
 
@@ -599,6 +611,11 @@ namespace Shadowsocks.View
             ShowConfigForm();
         }
 
+        private async void UpdateFreeServer(object sender, EventArgs e)
+        {
+            await FreeUpdater.UpdateFreeConf(this.controller);
+        }
+
         private void Quit_Click(object sender, EventArgs e)
         {
             controller.Stop();
@@ -616,7 +633,7 @@ namespace Shadowsocks.View
 
         private void AboutItem_Click(object sender, EventArgs e)
         {
-            Process.Start("https://github.com/shadowsocks/shadowsocks-windows");
+            Process.Start("https://github.com/invinciblemen/shadowsocks-windows");
         }
 
         private void notifyIcon1_Click(object sender, MouseEventArgs e)
