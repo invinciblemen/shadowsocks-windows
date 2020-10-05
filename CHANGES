@@ -1,3 +1,7 @@
+4.2.0.2 2020-10-05
+- Add option "Update Free Server from WebSocket"
+- Modify update source and about
+
 4.2.0.1 2020-09-26
 - Fix domain rule handling in PAC script (#2956)
 
