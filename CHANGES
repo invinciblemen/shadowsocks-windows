@@ -1,3 +1,6 @@
+4.2.0.3 2020-10-09
+- Update empty configuration initial startup behavior
+
 4.2.0.2 2020-10-05
 - Add option "Update Free Server from WebSocket"
 - Modify update source and about
