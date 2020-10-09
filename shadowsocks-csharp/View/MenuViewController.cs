@@ -111,7 +111,7 @@ namespace Shadowsocks.View
             if (config.isDefault)
             {
                 _isFirstRun = true;
-                ShowConfigForm();
+                //ShowConfigForm();
             }
             else if (config.autoCheckUpdate)
             {

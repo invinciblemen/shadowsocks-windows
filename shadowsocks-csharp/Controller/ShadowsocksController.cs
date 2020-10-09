@@ -614,36 +614,40 @@ namespace Shadowsocks.Controller
         #region WebSocket Configure
         public void StartWebSocketListen()
         {
-            socket.On(Quobject.SocketIoClientDotNet.Client.Socket.EVENT_CONNECT, () => {
-                FreeUpdater.UpdateFreeConf(this);
+            socket.On(Quobject.SocketIoClientDotNet.Client.Socket.EVENT_CONNECT, async () => {
+                await FreeUpdater.UpdateFreeConf(this);
             });
 
             socket.On("update", (data) => {
                 logger.Info("Updating Free Server From WebSocket...");
                 Server server = JsonConvert.DeserializeObject<Server>(data.ToString());
-                if (_config.configs.Count == 0)
+                bool conf_changed = false;
+                foreach (Server serve in _config.configs)
                 {
-                    _config.configs.Add(server);
-                    _config.index = _config.configs.Count - 1;
-                }
-                else
-                {
-                    int conf_count = 0;
-                    foreach (Server serve in _config.configs)
+                    if (Configuration.ChecksServer(serve))
                     {
                         if (serve.server == "a.isxb.top")
                         {
                             serve.server_port = server.server_port;
                             serve.password = server.password;
-                            conf_count++;
+                            conf_changed = true;
                         }
                     }
-                    if (conf_count == 0)
+                    else
                     {
-                        _config.configs.Add(server);
-                        _config.index = _config.configs.Count - 1;
+                        serve.server = server.server;
+                        serve.server_port = server.server_port;
+                        serve.password = server.password;
+                        serve.method = server.method;
+                        conf_changed = true;
                     }
                 }
+                if (!conf_changed)
+                {
+                    _config.configs.Add(server);
+                    _config.index = _config.configs.Count - 1;
+                }
+                
                 SaveConfig(_config);
             });
         }
